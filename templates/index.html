@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPL Score Predictor</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #f0f2f8;
+    --muted: #7c82a0;
+    --accent: #4f8ef7;
+    --accent2: #7c5cfc;
+    --green: #3ecf8e;
+    --red: #f75555;
+    --gold: #f5a623;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-icon { font-size: 26px; }
+  .header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+  .header p  { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color .2s, border-color .2s;
+  }
+  .tab:hover  { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Content ── */
+  .content { max-width: 820px; margin: 0 auto; padding: 28px 20px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* ── Form ── */
+  .form-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  select, input[type=text] {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 9px 12px;
+    font-size: 14px;
+    width: 100%;
+    outline: none;
+    transition: border-color .2s;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+
+  .toggle-row  { display: flex; gap: 8px; }
+  .toggle-btn  {
+    flex: 1;
+    padding: 9px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all .15s;
+  }
+  .toggle-btn:hover { border-color: var(--accent); color: var(--text); }
+  .toggle-btn.on    { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  /* ── Predict button ── */
+  .pred-btn {
+    width: 100%;
+    padding: 13px;
+    font-size: 15px;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    letter-spacing: .02em;
+    transition: opacity .15s, transform .1s;
+  }
+  .pred-btn:hover   { opacity: .88; }
+  .pred-btn:active  { transform: scale(.98); }
+  .pred-btn:disabled{ opacity: .4; cursor: not-allowed; }
+
+  /* ── Error ── */
+  .err { color: var(--red); font-size: 13px; margin-top: 8px; min-height: 18px; }
+
+  /* ── Result ── */
+  .result-area { display: none; }
+  .result-area.show { display: block; }
+
+  .score-hero { text-align: center; padding: 10px 0 4px; }
+  .score-big  { font-size: 64px; font-weight: 700; letter-spacing: -2px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .score-team { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .score-range{ font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .metrics    { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+  .metric     { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+  .metric-val { font-size: 20px; font-weight: 600; color: var(--text); }
+  .metric-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .06em; }
+
+  /* ── Winner card ── */
+  .winner-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    background: var(--surface);
+    position: relative;
+    overflow: hidden;
+  }
+  .winner-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(79,142,247,.07), rgba(124,92,252,.07));
+    pointer-events: none;
+  }
+  .winner-lbl  { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .winner-name { font-size: 24px; font-weight: 700; color: var(--text); }
+  .winner-pct  { font-size: 14px; color: var(--gold); font-weight: 600; margin-left: 8px; }
+
+  .prob-bar-wrap { margin-top: 14px; }
+  .prob-bar-track{ height: 10px; background: var(--surface2); border-radius: 5px; overflow: hidden; }
+  .prob-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 5px; transition: width .7s cubic-bezier(.4,0,.2,1); }
+  .prob-labels   { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .prob-bat      { color: var(--accent); font-weight: 600; }
+  .prob-bowl     { color: var(--accent2); font-weight: 600; }
+
+  /* ── Player / Stats tabs ── */
+  .search-row  { display: flex; gap: 10px; margin-bottom: 16px; }
+  .search-row input { flex: 1; }
+  .search-btn  {
+    padding: 9px 18px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .search-btn:hover { opacity: .85; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th    { text-align: left; padding: 8px 10px; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); }
+  td    { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-green { background: rgba(62,207,142,.15); color: var(--green); }
+  .badge-red   { background: rgba(247, 85, 85,.15); color: var(--red);  }
+  .badge-gold  { background: rgba(245,166,35,.15);  color: var(--gold); }
+
+  .empty { text-align: center; color: var(--muted); padding: 32px; font-size: 14px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 580px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .metrics   { grid-template-columns: 1fr 1fr; }
+    .score-big { font-size: 48px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">🏏</div>
+  <div>
+    <h1>IPL Score Predictor</h1>
+    <p>ML-powered match outcome prediction · 2008–2025 data</p>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('predict')">Predict Match</div>
+  <div class="tab" onclick="showTab('players')">Player Stats</div>
+  <div class="tab" onclick="showTab('matchup')">Head-to-Head</div>
+  <div class="tab" onclick="showTab('venue')">Venue Stats</div>
+  <div class="tab" onclick="showTab('history')">Team History</div>
+</div>
+
+<!-- ══════════════════════ PREDICT TAB ══════════════════════ -->
+<div class="content">
+<div id="tab-predict" class="panel active">
+
+  <div class="card">
+    <div class="card-title">Match Setup</div>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Batting Team</label>
+        <select id="batting_team" onchange="updateTossButtons()">
+          <option value="">Select team…</option>
+          {% for t in teams %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Bowling Team</label>
+        <select id="bowling_team" onchange="updateTossButtons()">
+          <option value="">Select team…</option>
+          {% for t in teams %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Venue</label>
+      <select id="venue">
+        <option value="">Select venue…</option>
+        {% for v in venues %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Toss Winner</label>
+      <div class="toggle-row" id="toss-row">
+        <span style="font-size:13px;color:var(--muted);padding:6px 0">Select teams first</span>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:6px">
+      <label>Toss Decision</label>
+      <div class="toggle-row">
+        <button class="toggle-btn on" id="dec-bat"   onclick="setDecision('bat')">Bat First</button>
+        <button class="toggle-btn"    id="dec-field" onclick="setDecision('field')">Bowl First</button>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:6px">
+      <label>Season</label>
+      <select id="season">
+        <option value="2025">2025</option>
+        <option value="2024" selected>2024</option>
+        <option value="2023">2023</option>
+        <option value="2022">2022</option>
+        <option value="2021">2021</option>
+        <option value="2020">2020</option>
+        <option value="2019">2019</option>
+        <option value="2018">2018</option>
+      </select>
+    </div>
+
+    <p class="err" id="pred-err"></p>
+    <hr class="divider">
+    <button class="pred-btn" id="pred-btn" onclick="runPredict()">🔮 Predict Match</button>
+  </div>
+
+  <!-- Result -->
+  <div class="result-area" id="result-area">
+    <div class="card">
+      <div class="card-title">Score Prediction</div>
+      <div class="score-hero">
+        <div class="score-big" id="res-score">—</div>
+        <div class="score-team" id="res-team"></div>
+        <div class="score-range" id="res-range"></div>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="metric-val" id="res-team-avg">—</div><div class="metric-lbl">Team avg</div></div>
+        <div class="metric"><div class="metric-val" id="res-venue-avg">—</div><div class="metric-lbl">Venue avg</div></div>
+        <div class="metric"><div class="metric-val" id="res-h2h">—</div><div class="metric-lbl">H2H record</div></div>
+        <div class="metric"><div class="metric-val" id="res-conf">—</div><div class="metric-lbl">Confidence</div></div>
+      </div>
+    </div>
+
+    <div class="winner-card">
+      <div class="winner-lbl">Predicted Winner</div>
+      <div>
+        <span class="winner-name" id="res-winner">—</span>
+        <span class="winner-pct" id="res-winner-pct"></span>
+      </div>
+      <div class="prob-bar-wrap">
+        <div class="prob-bar-track">
+          <div class="prob-bar-fill" id="prob-fill" style="width:50%"></div>
+        </div>
+        <div class="prob-labels">
+          <span id="prob-bat" class="prob-bat"></span>
+          <span id="prob-bowl" class="prob-bowl"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════ PLAYER STATS TAB ══════════════════════ -->
+<div id="tab-players" class="panel">
+  <div class="card">
+    <div class="card-title">Batter Stats</div>
+    <div class="search-row">
+      <input type="text" id="batter-input" placeholder="Search batter name…" onkeydown="if(event.key==='Enter') searchBatter()">
+      <button class="search-btn" onclick="searchBatter()">Search</button>
+    </div>
+    <div id="batter-results"><div class="empty">Enter a player name to search</div></div>
+  </div>
+  
+  <div class="card">
+    <div class="card-title">Bowler Stats</div>
+    <div class="search-row">
+      <input type="text" id="bowler-input" placeholder="Search bowler name…" onkeydown="if(event.key==='Enter') searchBowler()">
+      <button class="search-btn" onclick="searchBowler()">Search</button>
+    </div>
+    <div id="bowler-results"><div class="empty">Enter a player name to search</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════ MATCHUP TAB ══════════════════════ -->
+<div id="tab-matchup" class="panel">
+  <div class="card">
+    <div class="card-title">Bowler vs All Batters</div>
+    <div class="search-row">
+      <input type="text" id="bvb-bowler" placeholder="Bowler name…" onkeydown="if(event.key==='Enter') searchBvB()">
+      <button class="search-btn" onclick="searchBvB()">Search</button>
+    </div>
+    <div id="bvb-results"><div class="empty">Enter a bowler name</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Batter vs All Bowlers</div>
+    <div class="search-row">
+      <input type="text" id="bvb-batter" placeholder="Batter name…" onkeydown="if(event.key==='Enter') searchBvB2()">
+      <button class="search-btn" onclick="searchBvB2()">Search</button>
+    </div>
+    <div id="bvb2-results"><div class="empty">Enter a batter name</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════ VENUE TAB ══════════════════════ -->
+<div id="tab-venue" class="panel">
+  <div class="card">
+    <div class="card-title">Venue Statistics</div>
+    <div class="search-row">
+      <input type="text" id="venue-input" placeholder="Search venue…" onkeydown="if(event.key==='Enter') searchVenue()">
+      <button class="search-btn" onclick="searchVenue()">Search</button>
+    </div>
+    <div id="venue-results"><div class="empty">Enter a venue name to search</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════ TEAM HISTORY TAB ══════════════════════ -->
+<div id="tab-history" class="panel">
+  <div class="card">
+    <div class="card-title">Team Season History</div>
+    <div class="search-row">
+      <select id="history-team" style="flex:1">
+        <option value="">Select team…</option>
+        {% for t in teams %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+      </select>
+      <button class="search-btn" onclick="searchHistory()">Load</button>
+    </div>
+    <div id="history-results"><div class="empty">Select a team to view history</div></div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+/* ── Tab switching ── */
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+/* ── Toss controls ── */
+let tossWinner = null, tossDecision = 'bat';
+
+function updateTossButtons() {
+  const bat  = document.getElementById('batting_team').value;
+  const bowl = document.getElementById('bowling_team').value;
+  const row  = document.getElementById('toss-row');
+  row.innerHTML = '';
+  const teams = [bat, bowl].filter(Boolean);
+  if (!teams.length) {
+    row.innerHTML = '<span style="font-size:13px;color:var(--muted);padding:6px 0">Select teams first</span>';
+    return;
+  }
+  teams.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'toggle-btn' + (tossWinner === t ? ' on' : '');
+    btn.textContent = t;
+    btn.onclick = () => setToss(t);
+    row.appendChild(btn);
+  });
+  if (tossWinner && !teams.includes(tossWinner)) tossWinner = null;
+  document.getElementById('pred-err').textContent = '';
+}
+
+function setToss(t) {
+  tossWinner = t;
+  document.querySelectorAll('#toss-row .toggle-btn').forEach(b =>
+    b.classList.toggle('on', b.textContent === t));
+}
+
+function setDecision(d) {
+  tossDecision = d;
+  document.getElementById('dec-bat').classList.toggle('on', d === 'bat');
+  document.getElementById('dec-field').classList.toggle('on', d === 'field');
+}
+
+/* ── Predict ── */
+async function runPredict() {
+  const bat   = document.getElementById('batting_team').value;
+  const bowl  = document.getElementById('bowling_team').value;
+  const ven   = document.getElementById('venue').value;
+  const season = document.getElementById('season').value;
+  const errEl = document.getElementById('pred-err');
+  errEl.textContent = '';
+
+  if (!bat || !bowl) { errEl.textContent = 'Please select both teams.'; return; }
+  if (bat === bowl)  { errEl.textContent = 'Batting and bowling teams must be different.'; return; }
+  if (!ven)          { errEl.textContent = 'Please select a venue.'; return; }
+  if (!tossWinner)   { errEl.textContent = 'Please select a toss winner.'; return; }
+
+  const btn = document.getElementById('pred-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Predicting…';
+
+  try {
+    const resp = await fetch('/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        batting_team:  bat,
+        bowling_team:  bowl,
+        venue:         ven,
+        toss_winner:   tossWinner,
+        toss_decision: tossDecision,
+        season:        parseInt(season)
+      })
+    });
+    const d = await resp.json();
+
+    document.getElementById('res-score').textContent   = d.predicted_score;
+    document.getElementById('res-team').textContent    = `Predicted 1st innings score for ${bat}`;
+    document.getElementById('res-range').textContent   = `Likely range: ${d.range_low} – ${d.range_high}`;
+    document.getElementById('res-team-avg').textContent = d.team_avg ?? '—';
+    document.getElementById('res-venue-avg').textContent = d.venue_avg ?? '—';
+
+    const h = d.h2h;
+    const h2hTxt = h.total > 0
+      ? `${h.bat_wins}–${h.bowl_wins}`
+      : 'No data';
+    document.getElementById('res-h2h').textContent = h2hTxt;
+
+    const conf = d.winner_pct >= 65 ? 'High' : d.winner_pct >= 55 ? 'Medium' : 'Low';
+    document.getElementById('res-conf').textContent = conf;
+
+    document.getElementById('res-winner').textContent    = d.winner;
+    document.getElementById('res-winner-pct').textContent = `${d.winner_pct}% win chance`;
+    document.getElementById('prob-fill').style.width     = d.bat_win_pct + '%';
+    document.getElementById('prob-bat').textContent      = `${bat.split(' ').slice(-1)[0]} ${d.bat_win_pct}%`;
+    document.getElementById('prob-bowl').textContent     = `${d.bowl_win_pct}% ${bowl.split(' ').slice(-1)[0]}`;
+
+    document.getElementById('result-area').classList.add('show');
+    document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (e) {
+    errEl.textContent = 'Prediction failed. Make sure the server is running.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🔮 Predict Again';
+}
+
+/* ── Batter stats ── */
+async function searchBatter() {
+  const name = document.getElementById('batter-input').value.trim();
+  if (!name) return;
+  const d = await fetch(`/api/batter_stats?name=${encodeURIComponent(name)}`).then(r => r.json());
+  const el = document.getElementById('batter-results');
+  if (d.error || !d.length) { el.innerHTML = '<div class="empty">Player not found</div>'; return; }
+  el.innerHTML = `<table>
+    <tr><th>Player</th><th>Runs</th><th>Innings</th><th>Avg</th><th>SR</th></tr>
+    ${d.map(p => `<tr>
+      <td>${p.batter}</td>
+      <td>${p.career_runs}</td>
+      <td>${p.career_innings}</td>
+      <td><span class="badge badge-gold">${(+p.career_avg).toFixed(1)}</span></td>
+      <td><span class="badge ${p.career_sr >= 130 ? 'badge-green' : p.career_sr >= 110 ? 'badge-gold' : 'badge-red'}">${(+p.career_sr).toFixed(1)}</span></td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+/* ── Bowler stats ── */
+async function searchBowler() {
+  const name = document.getElementById('bowler-input').value.trim();
+  if (!name) return;
+  const d = await fetch(`/api/bowler_stats?name=${encodeURIComponent(name)}`).then(r => r.json());
+  const el = document.getElementById('bowler-results');
+  if (d.error || !d.length) { el.innerHTML = '<div class="empty">Player not found</div>'; return; }
+  el.innerHTML = `<table>
+    <tr><th>Player</th><th>Wickets</th><th>Runs Given</th><th>Economy</th><th>Bowl SR</th></tr>
+    ${d.map(p => `<tr>
+      <td>${p.bowler}</td>
+      <td>${p.career_wickets}</td>
+      <td>${p.career_runs_conceded}</td>
+      <td><span class="badge ${p.career_economy <= 7.5 ? 'badge-green' : p.career_economy <= 9 ? 'badge-gold' : 'badge-red'}">${(+p.career_economy).toFixed(2)}</span></td>
+      <td>${(+p.career_sr_bowl).toFixed(1)}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+/* ── BvB ── */
+async function searchBvB() {
+  const bowler = document.getElementById('bvb-bowler').value.trim();
+  if (!bowler) return;
+  const d = await fetch(`/api/bowler_vs_batter?bowler=${encodeURIComponent(bowler)}`).then(r => r.json());
+  const el = document.getElementById('bvb-results');
+  if (!d.length) { el.innerHTML = '<div class="empty">No data found</div>'; return; }
+  el.innerHTML = `<table>
+    <tr><th>Batter</th><th>Bowler</th><th>Runs</th><th>Balls</th><th>Wkts</th><th>SR</th></tr>
+    ${d.map(r => `<tr>
+      <td>${r.batter}</td><td>${r.bowler}</td><td>${r.runs}</td><td>${r.balls}</td>
+      <td>${r.wickets}</td>
+      <td><span class="badge ${r.sr >= 140 ? 'badge-green' : r.sr >= 100 ? 'badge-gold' : 'badge-red'}">${(+r.sr).toFixed(0)}</span></td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+async function searchBvB2() {
+  const batter = document.getElementById('bvb-batter').value.trim();
+  if (!batter) return;
+  const d = await fetch(`/api/batter_vs_bowler?batter=${encodeURIComponent(batter)}`).then(r => r.json());
+  const el = document.getElementById('bvb2-results');
+  if (!d.length) { el.innerHTML = '<div class="empty">No data found</div>'; return; }
+  el.innerHTML = `<table>
+    <tr><th>Batter</th><th>Bowler</th><th>Runs</th><th>Balls</th><th>Wkts</th><th>SR</th></tr>
+    ${d.map(r => `<tr>
+      <td>${r.batter}</td><td>${r.bowler}</td><td>${r.runs}</td><td>${r.balls}</td>
+      <td>${r.wickets}</td>
+      <td><span class="badge ${r.sr >= 140 ? 'badge-green' : r.sr >= 100 ? 'badge-gold' : 'badge-red'}">${(+r.sr).toFixed(0)}</span></td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+/* ── Venue ── */
+async function searchVenue() {
+  const ven = document.getElementById('venue-input').value.trim();
+  if (!ven) return;
+  const d = await fetch(`/api/venue_stats?venue=${encodeURIComponent(ven)}`).then(r => r.json());
+  const el = document.getElementById('venue-results');
+  if (!d.length) { el.innerHTML = '<div class="empty">No venue found</div>'; return; }
+  el.innerHTML = `<table>
+    <tr><th>Venue</th><th>Avg Score</th><th>Std Dev</th><th>Matches</th></tr>
+    ${d.map(r => `<tr>
+      <td>${r.venue}</td>
+      <td><span class="badge badge-gold">${r.avg_score}</span></td>
+      <td>${r.std_score}</td>
+      <td>${r.matches}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+/* ── Team history ── */
+async function searchHistory() {
+  const team = document.getElementById('history-team').value;
+  if (!team) return;
+  const d = await fetch(`/api/team_history?team=${encodeURIComponent(team)}`).then(r => r.json());
+  const el = document.getElementById('history-results');
+  if (!d.length) { el.innerHTML = '<div class="empty">No data found</div>'; return; }
+  el.innerHTML = `<table>
+    <tr><th>Season</th><th>Avg Score</th><th>Max</th><th>Min</th><th>Matches</th></tr>
+    ${d.map(r => `<tr>
+      <td>${r.season}</td>
+      <td><span class="badge badge-gold">${r.avg}</span></td>
+      <td><span class="badge badge-green">${r.max}</span></td>
+      <td><span class="badge badge-red">${r.min}</span></td>
+      <td>${r.matches}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+</script>
+</body>
+</html>
