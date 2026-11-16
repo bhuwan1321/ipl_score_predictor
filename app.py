@@ -82,13 +82,18 @@ def index():
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
-    data = request.json
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Send a JSON object in the request body.'}), 400
     batting_team = data.get('batting_team', '')
     bowling_team = data.get('bowling_team', '')
     venue        = data.get('venue', '')
     toss_winner  = data.get('toss_winner', '')
     toss_decision = data.get('toss_decision', 'bat')
-    season       = int(data.get('season', 2024))
+    try:
+        season = int(data.get('season', 2024))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'season must be a whole number, for example 2024.'}), 400
 
     # Get historical averages
     bat_avg  = get_team_avg(batting_team)
@@ -222,4 +227,6 @@ def search_players():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Debug mode exposes an interactive debugger, so it is off unless you ask for it:
+    #   FLASK_DEBUG=1 python app.py
+    app.run(debug=os.environ.get('FLASK_DEBUG') == '1', port=5000)
