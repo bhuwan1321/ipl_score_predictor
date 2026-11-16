@@ -10,6 +10,9 @@ Gradient boosting trained on 278,000+ ball-by-ball records from 2008 to 2025, se
   <a href="#api"><b>API</b></a>
 </p>
 
+<p align="center"><sub>Built with</sub><br>
+<img src="https://skillicons.dev/icons?i=py,flask,sklearn,html" alt="Python, Flask, scikit-learn, HTML" height="40"></p>
+
 Pick a batting team, a bowling team, a venue and the toss result. The app estimates powerplay and middle-overs
 form from historical team and venue averages, feeds those into a **gradient boosting regressor** and returns a
 predicted score with a range, plus a win probability based on head-to-head record, score advantage and toss.
