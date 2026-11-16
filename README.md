@@ -1,130 +1,101 @@
-# 🏏 IPL Score Predictor — ML Project
+<h1 align="center">IPL Score Predictor</h1>
 
-A machine learning web app that predicts IPL first innings scores and match winner
-using **Gradient Boosting Regression** trained on 278,000+ ball-by-ball records (2008–2025).
+<p align="center"><b>Predict an IPL team's first-innings score and win probability.</b><br>
+Gradient boosting trained on 278,000+ ball-by-ball records from 2008 to 2025, served by a small Flask app.</p>
 
----
+<p align="center">
+  <a href="#quick-start"><b>Quick start</b></a> ·
+  <a href="#what-you-can-do"><b>What you can do</b></a> ·
+  <a href="#how-it-works"><b>How it works</b></a> ·
+  <a href="#api"><b>API</b></a>
+</p>
 
-## ✨ What Changed (v2)
+Pick a batting team, a bowling team, a venue and the toss result. The app estimates powerplay and middle-overs
+form from historical team and venue averages, feeds those into a **gradient boosting regressor** and returns a
+predicted score with a range, plus a win probability based on head-to-head record, score advantage and toss.
 
-- **Simplified inputs** — you only need to select **batting team, bowling team, venue, and toss**.
-  No more powerplay sliders or mid-over inputs required.
-- **Winner prediction** — every prediction now includes a win probability bar
-  based on head-to-head record, score advantage and toss factor.
-- **Auto-estimation** — the app internally estimates powerplay/mid-over values
-  from historical team & venue averages before feeding the ML model, so you get
-  the same GBR accuracy without manual inputs.
-- **Cleaner UI** — dark-themed, fully responsive interface with colour-coded badges.
+## What you can do
 
----
+| Use it for | What you get |
+|---|---|
+| **Score and winner prediction** | Predicted first-innings score with a low and high range, and a win probability with the head-to-head breakdown |
+| **Player stats** | Search any batter (career runs, average, strike rate) or bowler (wickets, economy, bowling strike rate) |
+| **Matchups** | Bowler against batter strike rates and records |
+| **Venue analysis** | Average score, standard deviation and match count for each ground |
+| **Team history** | Season-by-season batting averages with the highest and lowest totals |
 
-## 📊 Datasets Used
+## Quick start
 
-| File | Description |
-|------|-------------|
-| `ball_by_ball_data.csv` | 278K+ delivery records — primary training data |
-| `ipl_matches_data.csv`  | 1,169 match records with venue, season, result |
-| `players-data-updated.csv` | 772 player profiles |
-| `teams_data.csv`        | Team IDs and names |
-| `team_aliases.csv`      | Team name aliases across seasons |
-
----
-
-## 🤖 ML Model
-
-- **Algorithm:** Gradient Boosting Regressor (sklearn)
-- **Training samples:** ~1,169 first-innings records
-- **Features (internal):** pp_runs, pp_wickets, pp_run_rate, mid_runs, mid_wickets, team, venue, bowling_team, season
-- **User inputs required:** batting team, bowling team, venue, toss winner, toss decision
-- **Performance:** MAE ≈ 16 runs, R² ≈ 0.56
-
----
-
-## 🚀 How to Run
+You need **Python 3.11 or newer**.
 
 ```bash
-# 1. Unzip the project
-unzip ipl_score_predictor_v2.zip
+git clone https://github.com/bhuwan1321/ipl_score_predictor.git
 cd ipl_score_predictor
-
-# 2. (Optional) Create a virtual environment
-python3 -m venv venv
-source venv/bin/activate        # Linux/Mac
-venv\Scripts\activate.bat       # Windows
-
-# 3. Install dependencies
+python -m venv venv
+source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# 4. Train the model (only if models/ folder is missing)
-python train_model.py
-
-# 5. Run the web app
 python app.py
-
-# 6. Open in browser
-# http://localhost:5000
 ```
 
----
+Open <http://localhost:5000>. The trained model is included, so there is nothing to train first.
 
-## 🖥️ Features
+## How it works
 
-### Score & Winner Prediction
-- Select batting team, bowling team, venue, season
-- Pick toss winner and decision (bat / bowl)
-- Get predicted 1st innings score with confidence range
-- Win probability bar with head-to-head breakdown
+| | |
+|---|---|
+| **Model** | Gradient Boosting Regressor (scikit-learn) |
+| **Training data** | About 1,169 first-innings totals built from 278,000+ deliveries (2008 to 2025) |
+| **Internal features** | Powerplay runs, wickets and run rate; middle-overs runs and wickets; team, venue, bowling team and season |
+| **Inputs you give** | Batting team, bowling team, venue, toss winner and toss decision |
+| **Accuracy** | Mean absolute error of about 16 runs and R² of about 0.56 on held-out matches |
 
-### Player Stats
-- Search any batter: career runs, average, strike rate
-- Search any bowler: wickets, economy, bowling SR
+Cricket scores are noisy, so treat the output as an estimate. The range shown with each prediction reflects that.
 
-### Bowler vs Batter Matchup
-- Colour-coded strike rates (green = high, red = low)
+## Data
 
-### Venue Analysis
-- Average scores, std deviation, match count per ground
+| File | Contents |
+|---|---|
+| `ball_by_ball_data.csv` | 278,000+ delivery records; the primary training data |
+| `ipl_matches_data.csv` | 1,169 match records with venue, season and result |
+| `players-data-updated.csv` | 772 player profiles |
+| `teams_data.csv`, `team_aliases.csv` | Team names and aliases across seasons |
+| `batter_stats.csv`, `bowler_stats.csv`, `venue_stats.csv`, `team_bat_stats.csv`, `batter_vs_bowler.csv`, `innings_scores.csv` | Summaries generated by the training script |
 
-### Team History
-- Season-by-season batting averages with max/min
+## API
 
----
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/predict` | JSON body with `batting_team`, `bowling_team`, `venue`, `toss_winner`, `toss_decision` and optional `season` |
+| `GET` | `/api/batter_stats?name=` | Career batting statistics |
+| `GET` | `/api/bowler_stats?name=` | Career bowling statistics |
+| `GET` | `/api/bowler_vs_batter?bowler=` | A bowler's record against batters |
+| `GET` | `/api/batter_vs_bowler?batter=` | A batter's record against bowlers |
+| `GET` | `/api/venue_stats` | Venue averages; add `?venue=` for one ground |
+| `GET` | `/api/team_history?team=` | Season-by-season team batting averages |
+| `GET` | `/api/search_players?q=` | Player name search |
 
-## 📁 Project Structure
+Invalid input to `/api/predict` returns a `400` with a JSON error message.
 
-```
-ipl_score_predictor/
-├── app.py                    # Flask server + API (simplified inputs)
-├── train_model.py            # Model training script
-├── requirements.txt
-├── README.md
-├── data/
-│   ├── ball_by_ball_data.csv
-│   ├── ipl_matches_data.csv
-│   ├── players-data-updated.csv
-│   ├── teams_data.csv
-│   ├── team_aliases.csv
-│   ├── batter_stats.csv
-│   ├── bowler_stats.csv
-│   ├── venue_stats.csv
-│   ├── team_bat_stats.csv
-│   ├── batter_vs_bowler.csv
-│   └── innings_scores.csv
-├── models/
-│   ├── score_model.pkl
-│   ├── le_team.pkl
-│   ├── le_bowl.pkl
-│   └── le_venue.pkl
-└── templates/
-    └── index.html            # Dark-themed responsive UI
-```
+## Security notes
 
----
+- Flask debug mode is off by default because it exposes an interactive debugger. Turn it on only locally with `FLASK_DEBUG=1 python app.py`.
+- The app is a local demo server. Do not expose it to the internet as it is.
+- The saved model is a pickle file, which can run code when loaded. Only load model files from sources you trust.
 
-## 🔧 Retrain the Model
+## Development
 
 ```bash
-python train_model.py
+python train_model.py      # retrain the model and regenerate the summary CSVs
+python app.py              # run the web app
 ```
 
-This regenerates all stats CSVs and re-trains the model from scratch.
+`requirements.txt` pins `scikit-learn==1.8.0`, the version the saved model was written with. If you retrain, the
+new model is written with whichever version you have installed.
+
+```
+app.py            Flask server and API
+train_model.py    Model training and summary generation
+data/             Source data and generated summaries
+models/           Trained model and label encoders
+templates/        Web page
+```
